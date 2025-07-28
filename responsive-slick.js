@@ -9,7 +9,8 @@ function addCreditNote() {
         font-size: 0.85em;
         color: #a0aec0;
     `;
-    credit.innerHTML = "© 2025 CYBERNOGEN · Crafted by <a href='https://github.com/gurudattch' target='_blank' style='color: #718096; text-decoration: none;'>Gurudatt Choudhary</a>";
+    credit.innerHTML = "© 2025 CYBERNOGEN 
+        //· Crafted by <a href='https://github.com/gurudattch' target='_blank' style='color: #718096; text-decoration: none;'>Gurudatt Choudhary</a>";
 
     // Target the last div inside .container (your empty styled div)
     const targetContainer = document.querySelector(".container");
